@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Games</title>
+</head>
+    <body>
+        <div class="center">
+            <div class="easy" style="font: Arial;">Ativar Modo fácil</div>
+        </div>
+    </body>
+    <style> 
+
+        body {
+            background-color: lightgray;
+        }
+        canvas { 
+            position: absolute; 
+            top: 0px; 
+            bottom: 0px; 
+            left: 0px; 
+            right: 0px; 
+            margin: auto; 
+        }
+        .easy {
+            color: red;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            font-size: 30px;
+        }
+
+        .center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+
+    <script>
+        const ariane = new Image();
+        ariane.src = './assets/ariane.jpg'; 
+
+        let canvas = 0,
+            context = 0,
+            width = 0,
+            height = 0,
+            frames = 0,
+            jumpLimit = 3,
+            blockSpeed = 6,
+            score = 0,
+            scoreLimit = 10;
+
+        document.querySelector('.easy').addEventListener('click', () => scoreLimit = 5);
+
+
+        let currentState;
+
+        const states = {
+            PLAY: 0,
+            PLAYING: 1,
+            LOST: 2,
+            PROPOSAL: 3
+        };
+        
+        const ground = {
+            y: 550,
+            height: 50,
+            color: '#9d9fa1',
+            draw: function () {
+                context.fillStyle = this.color;
+                context.fillRect(0, this.y, width, this.height);
+            }
+        };
+
+        const character = {
+            x: 50,
+            y: 550,
+            height: 50,
+            width: 50,
+            color: 'black',
+            speed: 0,
+            velocity: 1,
+            jumpPower: 20,
+            jumpSum: 0,
+            draw: function () {
+                context.drawImage(ariane, this.x, this.y, this.width, this.height);
+            },
+            move: function() {
+                if (currentState === states.PLAYING) {
+                    this.speed += this.velocity;
+                    this.y += this.speed;
+                }
+
+                if (this.y > ground.y - this.height) {
+                    this.y = ground.y - this.height;
+                    this.jumpSum = 0;
+                }
+            },
+            jump: function() {
+                if (this.jumpSum < jumpLimit) {
+                    this.speed = -this.jumpPower;
+                    this.jumpSum++;
+                }
+            }
+        }
+
+        const blocks = {
+            objects: [],
+            colors: ['red', 'yellow', 'green', 'black', 'brown'],
+            interval: 0,
+            createBlock: function() {
+                const blockWidth = 30 + Math.floor(50 * Math.random());
+                this.objects.push({
+                    x: 800 - blockWidth,
+                    width: blockWidth,
+                    height: 30 + Math.floor(120 * Math.random()),
+                    color: this.colors[Math.floor(5 * Math.random())]
+                });
+                this.interval = 50 + Math.floor(21 * Math.random());
+            },
+            draw: function() {
+                for (let i = 0; i < this.objects.length; i++) {
+                    const block = this.objects[i];
+                    
+                    context.fillStyle = block.color;
+                    context.fillRect(block.x, ground.y - block.height, block.width, block.height)
+                }
+            },
+            refresh: function() {
+                if (this.interval ===0) {
+                    this.createBlock();
+                } else {
+                    this.interval--;
+                }
+                
+                for (let i = 0; i < this.objects.length; i++) {
+                    const block = this.objects[i];
+
+                    block.x -= blockSpeed;
+
+                    if (character.x < block.x + block.width      && 
+                        character.x + character.width >= block.x && 
+                        character.y + character.height >= ground.y - block.height ) {
+                        currentState = states.LOST;
+                    }
+
+                    if (block.x <= -block.width) {
+                        this.objects.splice(i, 1);
+                        i--;
+                        score++;
+                        console.log('splice');
+
+                        if (score > scoreLimit) {
+                            score = 0;
+                            currentState = states.PROPOSAL;
+                        }
+                    }
+                }
+            },
+            clear: function() {
+                this.objects = [];
+            }
+        }
+
+        const initialize = () => {
+            height = 600;
+            width = 800;
+
+            canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.border = '1px solid';
+
+            context = canvas.getContext("2d");
+            document.body.appendChild(canvas);
+
+            canvas.addEventListener('mousedown', clicked);
+            
+            currentState = states.PLAY;
+
+            run();
+        }
+
+        const clicked = (event) => {
+
+            if (currentState === states.PROPOSAL) {
+                return;
+            }
+
+            if (currentState === states.PLAYING) {
+                character.jump();
+            } else if (currentState === states.PLAY) {
+                currentState = states.PLAYING;
+                blocks.clear();
+            } else if (currentState === states.LOST || currentState === states.PROPOSAL) {
+                currentState = states.PLAY;
+            }
+        }
+
+        const run = () => {
+            refresh();
+            draw();
+            character.move();
+
+            window.requestAnimationFrame(run);
+        }
+
+        const refresh = () => {
+            frames++;
+
+            if (currentState === states.PLAYING) {
+                blocks.refresh();
+            }
+        }
+
+        const draw = () => {
+            context.fillStyle = '#50beff';
+            context.fillRect(0, 0, width, height);
+
+            context.fillStyle = "#ffffff";
+            context.font = "50px Arial";
+            context.fillText(score, 30, 68);
+                
+            if (currentState === states.PLAY) {
+                score = 0;
+                context.fillStyle = 'green';
+                context.fillRect(width / 2 - 220, height / 2 - 100, 470, 270);
+
+                context.fillStyle = "white";
+                context.font = "25px Arial";
+                context.fillText('Leia com atenção:', 190, 240);
+
+                context.font = "20px Arial";
+                context.fillText('- Você deve pular os obstáculos para não perder', 190, 290);
+                context.fillText('- Pra pular clique em qualquer lugar no quadro azul', 190, 320);
+
+                context.fillText('- Alcance 10 pontos', 190, 350);
+                context.fillText('- Responda a pergunta corretamente', 190, 380);
+                context.fillText('- Ganhe um presente', 190, 410);
+
+                context.fillStyle = "black";
+                context.font = "25px Arial";
+                context.fillText('Clique aqui para começar', 275, 450);
+                
+
+            } else if (currentState === states.LOST || currentState === states.PROPOSAL) {
+                context.fillStyle = currentState === states.LOST ? 'red' : 'yellow';
+                context.fillRect(width / 2 - 150, height / 2 - 100, 300, 200);
+
+                if (currentState === states.PROPOSAL) {
+
+                    context.fillStyle = "black";
+                    context.font = "25px Arial";
+                    context.fillText('Ariane Polessi', 310, 250);
+                    context.fillText('Quer casar comigo?', 285, 290);
+                    
+                    context.fillStyle = "green";
+                    context.fillText('Sim', 300, 350);
+
+                    context.fillStyle = "red";
+                    context.font = "25px Arial";
+                    context.fillText('Não', 450, 350);
+                    
+                } else {
+                    context.fillStyle = "white";
+                    context.font = "25px Arial";
+                    context.fillText('Perdeu :(', 350, 250);
+
+                    context.fillStyle = "white";
+                    context.font = "25px Arial";
+                    context.fillText('Clique aqui recomeçar!', 270, 300);
+
+                }
+                
+
+                blocks.draw();
+            } else if (currentState === states.PLAYING) {
+                blocks.draw();
+            }
+            
+            if (score > 5) {
+
+            }
+
+            character.draw();
+            ground.draw();
+        }
+
+        initialize();
+
+    </script>
+</html>
